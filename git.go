@@ -22,6 +22,14 @@ func executeCommand(commandString string, subcommand string, cmdArgs []string) e
 	return cmd.Run()
 }
 
+func (git *Git) Init(commandArgs ...string) *Git {
+	if git.err != nil {
+		return git
+	}
+
+	git.err = executeCommand(git.cmd, "init", commandArgs)
+	return git
+}
 func (git *Git) Push(commandArgs ...string) *Git {
 	if git.err != nil {
 		return git
