@@ -1,11 +1,10 @@
 package main
 
 import (
-	"bytes"
+	"flag"
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 )
 
@@ -17,35 +16,74 @@ func createFile(fileName string) (*os.File, error) {
 		return nil, err
 	}
 
-	defer func() {
+	defer func() error {
 		err := createdFile.Close()
 		if err != nil {
 			fmt.Println("[ERROR] There was an error closing the file: ", fileName)
-			return nil, err
+			return err
 		}
 	}()
 
 	return createdFile, nil
 }
 
-// Execute git lfs track on the supplied extension
-func addFileToLfs(fileExtension string) error {
-	cmd := exec.Command("git", "lfs", "track", fmt.Sprintf("*.%s", fileExtension))
-	var out bytes.Buffer
-	cmd.Stdout = &out
+type File struct {
+	path string
+	size int64
+	name string
+	ext  string
+}
 
-	err := cmd.Run()
+func processNonLfsFiles(git *Git, files *[]File, branch string) error {
+	count := 0
 
-	if err != nil {
-		return err
+	for _, file := range *files {
+		git.Add(file.path)
+		if count%10 == 0 {
+			err := git.Commit("-m", "Adding non LFS files to repo").
+				Push(branch).
+				Error()
+			if err != nil {
+				return err
+			}
+		}
+		count++
+	}
+	return git.Commit("-m", "Adding what's left of the non LFS files").
+		Push(branch).
+		Error()
+}
+
+func processLfsFiles(git *Git, files *[]File, branch string) error {
+
+	for _, file := range *files {
+		err := git.Add(file.path).
+			Commit("-m", "Adding LFS file to repo").
+			Push(branch).
+			Error()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 func main() {
+	lfsFiles := make([]File, 0, 0)
+	nonLfsFiles := make([]File, 0, 0)
 
-	gitAttr, err := createFile(".gitattributes")
-	if err != nil {
-		log.Fatal("[ERROR] Creating .gitattributes file", err)
+	git := Git{
+		branch: "",
+		cmd:    "git",
+		err:    nil,
+	}
+
+	repoInit := flag.Bool("init", false, "Specifies with a Git repo needs to be created.")
+
+	if *repoInit {
+		err := git.Init().Error()
+		if err != nil {
+			log.Fatal("Error initializing the Git repository", err)
+		}
 	}
 
 	var myWalkFunc filepath.WalkFunc = func(path string, info os.FileInfo, err error) error {
@@ -54,25 +92,17 @@ func main() {
 		}
 
 		if !info.IsDir() {
-			fmt.Println("current path;", path)
-			fmt.Println("FileInfo.Name:", info.Name())
-			fmt.Println("Size:", info.Size())
+			file := File{
+				name: info.Name(),
+				path: path,
+				size: info.Size(),
+				ext:  filepath.Ext(info.Name()),
+			}
 
 			if info.Size()/(1024*1000) > 40 {
-				// Add file ext to git lfs
-				ext := filepath.Ext(info.Name())
-				err := addFileToLfs(ext)
-				if err != nil {
-					return err
-				}
-			}
-			cmd := exec.Command("git", "add", path)
-			var out bytes.Buffer
-			cmd.Stdout = &out
-
-			err := cmd.Run()
-			if err != nil {
-				return err
+				lfsFiles = append(lfsFiles, file)
+			} else {
+				nonLfsFiles = append(nonLfsFiles, file)
 			}
 		}
 		return nil
@@ -80,5 +110,15 @@ func main() {
 	err := filepath.Walk(".", myWalkFunc)
 	if err != nil {
 		log.Fatal("Error walking the path", err)
+	}
+	// Process LFS
+	err = processLfsFiles(&git, &lfsFiles, "test")
+	if err != nil {
+		log.Fatal("Error processing LFS files", err)
+	}
+	// Process non LFS
+	err = processNonLfsFiles(&git, &nonLfsFiles, "test")
+	if err != nil {
+		log.Fatal("Error processing non LFS files", err)
 	}
 }
