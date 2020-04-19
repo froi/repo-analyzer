@@ -55,6 +55,19 @@ func processNonLfsFiles(git *Git, files *[]File, branch string, remoteName strin
 		Error()
 }
 
+func configureGitLfs(git *Git, files *[]File) {
+	for _, file := range *files {
+
+		err := git.AddToLfs(file.ext).
+			Add().
+			Commit("-m", fmt.Sprintf("Add extension %s to Git LFS tracking", file.ext)).
+			Push().
+			Error()
+		if err != nil {
+			log.Println("There was a Git LFS error: tracking an extension", file.ext)
+		}
+	}
+}
 func processLfsFiles(git *Git, files *[]File, branch string, remoteName string) error {
 
 	for _, file := range *files {
