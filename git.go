@@ -23,6 +23,14 @@ func executeCommand(commandString string, subcommand string, cmdArgs []string) e
 	return cmd.Run()
 }
 
+func (git *Git) LfsInstall(commandArgs ...string) *Git {
+	if git.err != nil {
+		return git
+	}
+	commandArgs = append([]string{"install"}, commandArgs...)
+	git.err = executeCommand(git.cmd, "lfs", commandArgs)
+	return git
+}
 func (git *Git) Init(commandArgs ...string) *Git {
 	if git.err != nil {
 		return git
