@@ -7,9 +7,10 @@ import (
 )
 
 type Git struct {
-	branch string
-	cmd    string
-	err    error
+	branch     string
+	cmd        string
+	err        error
+	remoteName string
 }
 
 func executeCommand(commandString string, subcommand string, cmdArgs []string) error {
@@ -34,6 +35,7 @@ func (git *Git) Push(commandArgs ...string) *Git {
 	if git.err != nil {
 		return git
 	}
+	commandArgs = append([]string{git.remoteName, git.branch}, commandArgs...)
 	git.err = executeCommand(git.cmd, "push", commandArgs)
 	return git
 }
