@@ -8,26 +8,6 @@ import (
 	"path/filepath"
 )
 
-// This may not be needed.
-func createFile(fileName string) (*os.File, error) {
-	createdFile, err := os.Create(fileName)
-	if err != nil {
-		fmt.Println("[ERROR] There was an error creating", fileName, err)
-		return nil, err
-	}
-
-	defer func() error {
-		err := createdFile.Close()
-		if err != nil {
-			fmt.Println("[ERROR] There was an error closing the file: ", fileName)
-			return err
-		}
-		return nil
-	}()
-
-	return createdFile, nil
-}
-
 type File struct {
 	path string
 	size int64
@@ -90,13 +70,11 @@ func verifyGitRepo() {
 		}
 	}
 }
-func init() {
-
-}
 func main() {
 	repoInit := flag.Bool("init", false, "Specifies with a Git repo needs to be created.")
 	remoteName := flag.String("remote", "origin", "Specifies the Git remote to use when pushing changes. Defaults to origin.")
 	branch := flag.String("branch", "master", "Specifies the Git branch to use when commiting changes. Defaults to master.")
+	lfsInstall := flag.Bool("lfs-instal", false, "Ensures that Git LFS hooks are installed for this repository.")
 	flag.Parse()
 
 	lfsFiles := make([]File, 0, 0)
@@ -116,6 +94,13 @@ func main() {
 		}
 	} else {
 		verifyGitRepo()
+	}
+
+	if *lfsInstall {
+		err := git.LfsInstall().Error()
+		if err != nil {
+			log.Fatal("Error installing Git LFS hooks.", err)
+		}
 	}
 
 	var myWalkFunc filepath.WalkFunc = func(path string, info os.FileInfo, err error) error {
@@ -144,6 +129,7 @@ func main() {
 		log.Fatal("Error walking the path", err)
 	}
 	// Process LFS
+	configureGitLfs(&git, &lfsFiles)
 	err = processLfsFiles(&git, &lfsFiles, *branch, *remoteName)
 	if err != nil {
 		log.Fatal("Error processing LFS files", err)
