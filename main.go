@@ -42,7 +42,7 @@ func processNonLfsFiles(git *Git, files *[]File, branch string, remoteName strin
 		git.Add(file.path)
 		if count%10 == 0 {
 			err := git.Commit("-m", "Adding non LFS files to repo").
-				Push(remoteName, branch).
+				Push().
 				Error()
 			if err != nil {
 				return err
@@ -51,7 +51,7 @@ func processNonLfsFiles(git *Git, files *[]File, branch string, remoteName strin
 		count++
 	}
 	return git.Commit("-m", "Adding what's left of the non LFS files").
-		Push(branch).
+		Push().
 		Error()
 }
 
@@ -60,7 +60,7 @@ func processLfsFiles(git *Git, files *[]File, branch string, remoteName string) 
 	for _, file := range *files {
 		err := git.Add(file.path).
 			Commit("-m", "Adding LFS file to repo").
-			Push(remoteName, branch).
+			Push().
 			Error()
 		if err != nil {
 			return err
@@ -90,9 +90,10 @@ func main() {
 	nonLfsFiles := make([]File, 0, 0)
 
 	git := Git{
-		branch: "",
-		cmd:    "git",
-		err:    nil,
+		branch:     *branch,
+		cmd:        "git",
+		err:        nil,
+		remoteName: *remoteName,
 	}
 
 	if *repoInit {
