@@ -22,6 +22,7 @@ func createFile(fileName string) (*os.File, error) {
 			fmt.Println("[ERROR] There was an error closing the file: ", fileName)
 			return err
 		}
+		return nil
 	}()
 
 	return createdFile, nil
@@ -67,7 +68,19 @@ func processLfsFiles(git *Git, files *[]File, branch string) error {
 	}
 	return nil
 }
+func verifyGitRepo() {
+	if _, err := os.Stat(".git"); err != nil {
+		if os.IsNotExist(err) {
+			log.Fatal("Not in a Git repository. Please us in a repository or initialize a new one.")
+		} else {
+			log.Fatal("There was an error verifying Git repo existence.", err)
+		}
+	}
+}
 func main() {
+	repoInit := flag.Bool("init", false, "Specifies with a Git repo needs to be created.")
+	flag.Parse()
+
 	lfsFiles := make([]File, 0, 0)
 	nonLfsFiles := make([]File, 0, 0)
 
@@ -77,13 +90,13 @@ func main() {
 		err:    nil,
 	}
 
-	repoInit := flag.Bool("init", false, "Specifies with a Git repo needs to be created.")
-
 	if *repoInit {
 		err := git.Init().Error()
 		if err != nil {
 			log.Fatal("Error initializing the Git repository", err)
 		}
+	} else {
+		verifyGitRepo()
 	}
 
 	var myWalkFunc filepath.WalkFunc = func(path string, info os.FileInfo, err error) error {
