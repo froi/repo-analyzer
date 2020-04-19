@@ -35,14 +35,14 @@ type File struct {
 	ext  string
 }
 
-func processNonLfsFiles(git *Git, files *[]File, branch string) error {
+func processNonLfsFiles(git *Git, files *[]File, branch string, remoteName string) error {
 	count := 0
 
 	for _, file := range *files {
 		git.Add(file.path)
 		if count%10 == 0 {
 			err := git.Commit("-m", "Adding non LFS files to repo").
-				Push(branch).
+				Push(remoteName, branch).
 				Error()
 			if err != nil {
 				return err
@@ -55,12 +55,12 @@ func processNonLfsFiles(git *Git, files *[]File, branch string) error {
 		Error()
 }
 
-func processLfsFiles(git *Git, files *[]File, branch string) error {
+func processLfsFiles(git *Git, files *[]File, branch string, remoteName string) error {
 
 	for _, file := range *files {
 		err := git.Add(file.path).
 			Commit("-m", "Adding LFS file to repo").
-			Push(branch).
+			Push(remoteName, branch).
 			Error()
 		if err != nil {
 			return err
@@ -77,8 +77,13 @@ func verifyGitRepo() {
 		}
 	}
 }
+func init() {
+
+}
 func main() {
 	repoInit := flag.Bool("init", false, "Specifies with a Git repo needs to be created.")
+	remoteName := flag.String("remote", "origin", "Specifies the Git remote to use when pushing changes. Defaults to origin.")
+	branch := flag.String("branch", "master", "Specifies the Git branch to use when commiting changes. Defaults to master.")
 	flag.Parse()
 
 	lfsFiles := make([]File, 0, 0)
@@ -125,12 +130,12 @@ func main() {
 		log.Fatal("Error walking the path", err)
 	}
 	// Process LFS
-	err = processLfsFiles(&git, &lfsFiles, "test")
+	err = processLfsFiles(&git, &lfsFiles, *branch, *remoteName)
 	if err != nil {
 		log.Fatal("Error processing LFS files", err)
 	}
 	// Process non LFS
-	err = processNonLfsFiles(&git, &nonLfsFiles, "test")
+	err = processNonLfsFiles(&git, &nonLfsFiles, *branch, *remoteName)
 	if err != nil {
 		log.Fatal("Error processing non LFS files", err)
 	}
